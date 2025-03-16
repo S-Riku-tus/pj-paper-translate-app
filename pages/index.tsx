@@ -1,112 +1,89 @@
-import Image from "next/image";
-import { Geist, Geist_Mono } from "next/font/google";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import Head from 'next/head';
+import { useState } from 'react';
+import SearchForm from '../components/SearchForm';
+import PaperList from '../components/PaperList';
 
 export default function Home() {
+  const [papers, setPapers] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const handleSearch = async (searchParams) => {
+    setIsLoading(true);
+    try {
+      // バックエンドAPIが実装されるまでのモックデータ
+      setTimeout(() => {
+        const mockPapers = [
+          {
+            id: '1',
+            title: 'Attention Is All You Need',
+            authors: 'Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit',
+            abstract: 'The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism.',
+            year: '2017',
+            translated_title: 'アテンションこそすべて',
+            translated_abstract: 'アテンションメカニズムのみに基づく新しいシンプルなネットワークアーキテクチャである「Transformer」を提案します。機械翻訳タスクでのRNNやCNNを用いた従来モデルよりも優れた性能を示します。',
+            summary: 'この論文はTransformerアーキテクチャを提案し、エンコーダ-デコーダ構造にセルフアテンションを導入することで、並列処理が可能になり、長距離依存関係の学習が容易になることを示しました。現代の多くのNLPモデルの基礎となる革新的な研究です。',
+            url: 'https://arxiv.org/abs/1706.03762'
+          },
+          {
+            id: '2',
+            title: 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding',
+            authors: 'Jacob Devlin, Ming-Wei Chang, Kenton Lee, Kristina Toutanova',
+            abstract: 'We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers.',
+            year: '2018',
+            translated_title: 'BERT: 言語理解のための深層双方向Transformerの事前学習',
+            translated_abstract: '双方向Transformerエンコーダー表現（BERT）と呼ばれる新しい言語表現モデルを導入します。',
+            summary: 'BERTはTransformerエンコーダをベースに双方向の文脈を考慮した事前学習モデルを提案。マスク言語モデリングと次文予測の2つのタスクで事前学習することで、fine-tuningするだけで多様なNLPタスクで高い性能を達成しました。',
+            url: 'https://arxiv.org/abs/1810.04805'
+          }
+        ];
+        setPapers(mockPapers);
+        setIsLoading(false);
+      }, 1000);
+      
+      // 実際のAPIが実装されたら以下のコードを使用
+      // const response = await axios.get('/api/papers', { params: searchParams });
+      // setPapers(response.data);
+      // setIsLoading(false);
+    } catch (error) {
+      console.error('Error fetching papers:', error);
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              pages/index.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gray-50">
+      <Head>
+        <title>論文検索・翻訳アプリ</title>
+        <meta name="description" content="論文を簡単に検索して翻訳・要約できるアプリ" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="text-center mb-10">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">論文検索・翻訳アプリ</h1>
+          <p className="text-lg text-gray-600">キーワードやジャンルから論文を検索して、自動翻訳・要約を確認できます</p>
+        </div>
+        
+        <SearchForm onSearch={handleSearch} />
+        
+        <div className="mt-8">
+          {isLoading ? (
+            <div className="flex justify-center">
+              <div className="text-center">
+                <div className="inline-block animate-spin h-8 w-8 border-4 border-gray-200 rounded-full border-t-blue-600"></div>
+                <p className="mt-2 text-gray-700">論文を検索中...</p>
+              </div>
+            </div>
+          ) : (
+            <PaperList papers={papers} />
+          )}
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      <footer className="bg-white border-t border-gray-200 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <p className="text-center text-gray-500 text-sm">© {new Date().getFullYear()} 論文検索・翻訳アプリ</p>
+        </div>
       </footer>
     </div>
   );
