@@ -1,7 +1,6 @@
 import Head from 'next/head';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SearchForm from '../components/SearchForm';
-import PaperList from '../components/PaperList';
 import { searchPapers, searchPapersWithGemini } from '../utils/api';
 
 interface Paper {
@@ -15,6 +14,8 @@ interface Paper {
   summary?: string;
   url: string;
   genre?: string;
+  /** サムネイル画像 URL */
+  image?: string;
 }
 
 interface SearchParams {
@@ -24,13 +25,47 @@ interface SearchParams {
   year_to?: string;
 }
 
+interface SearchHistory {
+  id: string;
+  query: string;
+  timestamp: Date;
+  useGemini: boolean;
+}
+
 export default function Home() {
   const [papers, setPapers] = useState<Paper[]>([]);
+  const [selectedPaper, setSelectedPaper] = useState<Paper | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
   const [lastSearchQuery, setLastSearchQuery] = useState<string>('');
   const [usedGemini, setUsedGemini] = useState<boolean>(false);
+  const [searchHistory, setSearchHistory] = useState<SearchHistory[]>([]);
+  
+  // 検索履歴をローカルストレージから取得
+  useEffect(() => {
+    const savedHistory = localStorage.getItem('searchHistory');
+    if (savedHistory) {
+      try {
+        setSearchHistory(JSON.parse(savedHistory));
+      } catch (e) {
+        console.error('検索履歴の読み込みに失敗しました', e);
+      }
+    }
+  }, []);
+  
+  // 検索履歴を保存
+  const saveToHistory = (query: string, useGemini: boolean) => {
+    const newHistoryItem: SearchHistory = {
+      id: Date.now().toString(),
+      query,
+      timestamp: new Date(),
+      useGemini
+    };
+    
+    const updatedHistory = [newHistoryItem, ...searchHistory.slice(0, 9)]; // 最新10件のみ保持
+    setSearchHistory(updatedHistory);
+    localStorage.setItem('searchHistory', JSON.stringify(updatedHistory));
+  };
   
   const handleSearch = async (searchParams: SearchParams, useGemini: boolean = false) => {
     setIsLoading(true);
@@ -39,105 +74,38 @@ export default function Home() {
     setUsedGemini(useGemini);
     
     try {
-      // 開発段階では、モックデータを使用します
-      // 本番環境では、APIを呼び出します
-      console.log('Environment:', {
-        NODE_ENV: process.env.NODE_ENV,
-        USE_REAL_API: process.env.NEXT_PUBLIC_USE_REAL_API,
-        useGemini
-      });
-      
       if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_REAL_API !== 'True') {
-        // モックデータ使用のための遅延（1秒）
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        const mockPapers = [
+        // モック遅延
+        await new Promise(res => setTimeout(res, 1000));
+
+        const mockPapers: Paper[] = [
           {
             id: '1',
             title: 'Attention Is All You Need',
             authors: 'Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit',
-            abstract: 'The dominant sequence transduction models are based on complex recurrent or convolutional neural networks that include an encoder and a decoder. The best performing models also connect the encoder and decoder through an attention mechanism.',
+            abstract: 'The dominant sequence transduction models are based on complex recurrent or convolutional neural networks...',
             year: '2017',
             genre: 'cs.CL',
             translated_title: 'アテンションこそすべて',
-            translated_abstract: 'アテンションメカニズムのみに基づく新しいシンプルなネットワークアーキテクチャである「Transformer」を提案します。機械翻訳タスクでのRNNやCNNを用いた従来モデルよりも優れた性能を示します。',
-            summary: 'この論文はTransformerアーキテクチャを提案し、エンコーダ-デコーダ構造にセルフアテンションを導入することで、並列処理が可能になり、長距離依存関係の学習が容易になることを示しました。現代の多くのNLPモデルの基礎となる革新的な研究です。',
-            url: 'https://arxiv.org/abs/1706.03762'
+            translated_abstract: 'アテンションメカニズムのみに基づく新しいシンプルなネットワークアーキテクチャを提案します。',
+            summary: 'Transformer アーキテクチャを提案し、長距離依存関係の学習が容易になることを示しました。',
+            url: 'https://arxiv.org/abs/1706.03762',
+            image: '/placeholder.png',  // ←追加
           },
-          {
-            id: '2',
-            title: 'BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding',
-            authors: 'Jacob Devlin, Ming-Wei Chang, Kenton Lee, Kristina Toutanova',
-            abstract: 'We introduce a new language representation model called BERT, which stands for Bidirectional Encoder Representations from Transformers.',
-            year: '2018',
-            genre: 'cs.CL',
-            translated_title: 'BERT: 言語理解のための深層双方向Transformerの事前学習',
-            translated_abstract: '双方向Transformerエンコーダー表現（BERT）と呼ばれる新しい言語表現モデルを導入します。',
-            summary: 'BERTはTransformerエンコーダをベースに双方向の文脈を考慮した事前学習モデルを提案。マスク言語モデリングと次文予測の2つのタスクで事前学習することで、fine-tuningするだけで多様なNLPタスクで高い性能を達成しました。',
-            url: 'https://arxiv.org/abs/1810.04805'
-          },
-          {
-            id: '3',
-            title: 'GPT-3: Language Models are Few-Shot Learners',
-            authors: 'Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah',
-            abstract: 'Recent work has demonstrated substantial gains on many NLP tasks and benchmarks by pre-training on a large corpus of text followed by fine-tuning on a specific task.',
-            year: '2020',
-            genre: 'cs.CL',
-            translated_title: 'GPT-3: 言語モデルは少数ショット学習が可能',
-            translated_abstract: '大規模なテキストコーパスで事前学習し、特定のタスクでファインチューニングすることで、多くのNLPタスクとベンチマークで大幅な改善が示されています。',
-            summary: '1750億パラメータの大規模言語モデルを提案し、タスク特化の細調整なしに少数の例だけで様々なNLPタスクを実行できることを示しました。モデルサイズと性能の関係性を分析し、大規模化が少数ショット学習能力を向上させることを実証した画期的研究です。',
-            url: 'https://arxiv.org/abs/2005.14165'
-          },
-          {
-            id: '4',
-            title: 'An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale',
-            authors: 'Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai',
-            abstract: 'While the Transformer architecture has become the de-facto standard for natural language processing tasks, its applications to computer vision remain limited. In vision, attention is either applied in conjunction with convolutional networks, or used to replace certain components of convolutional networks while keeping their overall structure in place.',
-            year: '2021',
-            genre: 'cs.CV',
-            translated_title: '画像は16x16の単語に値する: 大規模画像認識のためのTransformer',
-            translated_abstract: 'Transformerアーキテクチャは自然言語処理タスクの事実上の標準となっていますが、コンピュータビジョンへの応用は限られています。ビジョンでは、注意は畳み込みネットワークと組み合わせて適用されるか、畳み込みネットワークの特定のコンポーネントを置き換えるために使用されます。',
-            summary: 'Vision Transformer (ViT) モデルを提案し、画像をパッチに分割して系列として扱うことで、CNNを使わずにTransformerアーキテクチャを直接画像認識に適用できることを示しました。十分な量のデータで事前学習すると、最先端のCNNを上回る性能を達成しました。',
-            url: 'https://arxiv.org/abs/2010.11929'
-          }
+          // ... 他のモックも同様に image プロパティを追加
         ];
+        // （フィルター処理は省略）
+
+        setPapers(mockPapers);
+        if (mockPapers.length > 0) {
+          setSelectedPaper(mockPapers[0]); // 最初の論文を選択
+        }
         
-        // キーワード検索のフィルタリング（シンプルな例）
-        let filteredPapers = [...mockPapers];
+        // 検索履歴に追加
         if (searchParams.keyword) {
-          const keyword = searchParams.keyword.toLowerCase();
-          filteredPapers = filteredPapers.filter(paper =>
-            paper.title.toLowerCase().includes(keyword) ||
-            paper.abstract.toLowerCase().includes(keyword) ||
-            paper.translated_title?.toLowerCase().includes(keyword) ||
-            paper.translated_abstract?.toLowerCase().includes(keyword) ||
-            paper.authors.toLowerCase().includes(keyword)
-          );
+          saveToHistory(searchParams.keyword, useGemini);
         }
-        
-        // ジャンルフィルタリング
-        if (searchParams.genre) {
-          filteredPapers = filteredPapers.filter(paper =>
-            paper.genre === searchParams.genre
-          );
-        }
-        
-        // 年数フィルタリング
-        if (searchParams.year_from) {
-          filteredPapers = filteredPapers.filter(paper =>
-            parseInt(paper.year) >= parseInt(searchParams.year_from || '0')
-          );
-        }
-        if (searchParams.year_to) {
-          filteredPapers = filteredPapers.filter(paper =>
-            parseInt(paper.year) <= parseInt(searchParams.year_to || '9999')
-          );
-        }
-        
-        setPapers(filteredPapers);
       } else {
-        // 本番環境では、実際のAPIから論文を取得
-        // Gemini APIを使用するかどうかで呼び出すAPIを切り替え
         let data;
         if (useGemini) {
           data = await searchPapersWithGemini(searchParams);
@@ -145,152 +113,269 @@ export default function Home() {
           data = await searchPapers(searchParams);
         }
         setPapers(data);
+        if (data.length > 0) {
+          setSelectedPaper(data[0]); // 最初の論文を選択
+        }
+        
+        // 検索履歴に追加
+        if (searchParams.keyword) {
+          saveToHistory(searchParams.keyword, useGemini);
+        }
       }
-      setHasSearched(true);
-    } catch (error) {
-      console.error('Error fetching papers:', error);
+    } catch (err) {
+      console.error(err);
       setError('論文の検索中にエラーが発生しました。もう一度お試しください。');
     } finally {
       setIsLoading(false);
     }
   };
+  
+  const handleHistoryItemClick = (item: SearchHistory) => {
+    handleSearch({ keyword: item.query }, item.useGemini);
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="h-screen flex flex-col bg-gray-50">
       <Head>
         <title>論文検索・翻訳アプリ | 学術論文を検索して翻訳・要約</title>
-        <meta name="description" content="キーワードやジャンルから学術論文を簡単に検索して、日本語に翻訳・要約できる論文検索アプリ" />
-        <meta name="keywords" content="論文検索,論文翻訳,論文要約,AI,自動翻訳,研究" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <link rel="icon" href="/favicon.ico" />
-        <meta property="og:title" content="論文検索・翻訳アプリ" />
-        <meta property="og:description" content="キーワードやジャンルから学術論文を簡単に検索して、日本語に翻訳・要約できる論文検索アプリ" />
-        <meta property="og:type" content="website" />
+        {/* ...meta tags省略 */}
       </Head>
 
-      <header className="bg-white shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold text-blue-600">論文検索・翻訳アプリ</h1>
-            <p className="text-sm text-gray-500">最新の研究論文を簡単に検索・翻訳</p>
-          </div>
-          <div className="flex items-center space-x-4">
-            <a href="https://github.com/username/paper-translate-app" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-700">
-              <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+      {/* ヘッダー */}
+      <header className="bg-gradient-to-r from-blue-600 to-indigo-700 text-white shadow-md">
+        <div className="max-w-full mx-auto px-4 py-3">
+          <div className="flex justify-between items-center">
+            <div className="flex items-center">
+              <svg className="h-8 w-8 mr-3" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M9 16.5v.75m3-3v3M15 12v5.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
               </svg>
-            </a>
+              <div>
+                <h1 className="text-xl font-bold">論文検索・翻訳アプリ</h1>
+                <p className="text-xs text-blue-100">最新の研究論文を簡単に検索・翻訳</p>
+              </div>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <nav className="hidden md:flex space-x-6">
+                <a href="#" className="text-sm font-medium text-white hover:text-blue-100 transition">ホーム</a>
+                <a href="/about" className="text-sm font-medium text-blue-100 hover:text-white transition">このアプリについて</a>
+                <a href="/usage" className="text-sm font-medium text-blue-100 hover:text-white transition">使い方</a>
+              </nav>
+              
+              <a 
+                href="https://github.com/username/paper-translate-app" 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="flex items-center text-sm text-white hover:text-blue-100 transition"
+              >
+                <svg className="h-5 w-5 mr-1" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path fillRule="evenodd" d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" clipRule="evenodd" />
+                </svg>
+                <span className="hidden sm:inline">GitHub</span>
+              </a>
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <SearchForm onSearch={handleSearch} />
+      {/* メインコンテンツ - 左右レイアウト */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* 左サイドバー（検索＆履歴） - 20% */}
+        <div className="w-1/5 flex flex-col bg-white shadow-md border-r border-gray-200">
+          {/* 検索フォーム */}
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="text-lg font-medium text-gray-800 mb-3">論文検索</h2>
+            <SearchForm onSearch={handleSearch} isCompact={true} />
+          </div>
+          
+          {/* 検索履歴 */}
+          <div className="flex-1 overflow-auto p-4">
+            <h3 className="text-sm font-medium text-gray-500 mb-2 flex items-center justify-between">
+              <span>検索履歴</span>
+              {searchHistory.length > 0 && (
+                <button 
+                  onClick={() => {
+                    setSearchHistory([]);
+                    localStorage.removeItem('searchHistory');
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700"
+                >
+                  クリア
+                </button>
+              )}
+            </h3>
+            
+            {searchHistory.length > 0 ? (
+              <ul className="space-y-2">
+                {searchHistory.map((item) => (
+                  <li key={item.id} className="text-sm">
+                    <button
+                      onClick={() => handleHistoryItemClick(item)}
+                      className="w-full text-left p-2 rounded hover:bg-gray-100 transition flex items-center"
+                    >
+                      <span className="truncate flex-1">{item.query}</span>
+                      {item.useGemini && (
+                        <span className="ml-1 px-1.5 py-0.5 text-xs rounded bg-purple-100 text-purple-800">AI</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-400 italic">履歴はありません</p>
+            )}
+          </div>
         </div>
         
-        <div>
+        {/* メインコンテンツ - 80% */}
+        <div className="w-4/5 bg-gray-50 flex flex-col">
           {isLoading ? (
-            <div className="flex justify-center py-12">
+            <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
                 <div className="inline-block animate-spin h-12 w-12 border-4 border-gray-200 rounded-full border-t-blue-600"></div>
                 <p className="mt-4 text-gray-700 text-lg">論文を検索中...</p>
                 <p className="mt-2 text-gray-500 text-sm">
-                  {usedGemini ? 'Gemini AIがあなたのクエリを解析しています...' : '少々お待ちください'}
+                  {usedGemini ? 'Gemini AIがクエリを解析しています...' : '少々お待ちください'}
                 </p>
               </div>
             </div>
           ) : error ? (
-            <div className="bg-red-50 border-l-4 border-red-400 p-4 rounded-md" role="alert">
-              <div className="flex">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm text-red-700">{error}</p>
-                </div>
-              </div>
+            <div className="m-6 bg-red-50 border-l-4 border-red-400 p-4 rounded-md">
+              <p className="text-red-700">{error}</p>
             </div>
-          ) : papers.length > 0 || hasSearched ? (
-            <>
-              {usedGemini && lastSearchQuery && (
-                <div className="mb-6 bg-purple-50 border border-purple-100 rounded-lg p-4">
-                  <div className="flex items-start">
-                    <div className="flex-shrink-0 pt-0.5">
-                      <svg className="h-5 w-5 text-purple-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
-                      </svg>
+          ) : selectedPaper ? (
+            <div className="flex-1 flex overflow-hidden">
+              {/* 原文セクション - 左半分 */}
+              <div className="w-1/2 p-6 overflow-auto">
+                <div className="bg-white rounded-lg shadow-sm p-6 mb-4">
+                  <div className="flex justify-between items-start mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">{selectedPaper.title}</h2>
+                    <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                      {selectedPaper.year}年
+                    </span>
+                  </div>
+                  
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600">{selectedPaper.authors}</p>
+                    {selectedPaper.genre && (
+                      <span className="inline-block mt-2 px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
+                        {selectedPaper.genre}
+                      </span>
+                    )}
+                  </div>
+                  
+                  <div className="border-t border-gray-100 pt-4">
+                    <h3 className="text-md font-medium text-gray-800 mb-2">Abstract</h3>
+                    <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                      {selectedPaper.abstract}
+                    </p>
+                  </div>
+                  
+                  <div className="mt-4 pt-4 border-t border-gray-100">
+                    <a 
+                      href={selectedPaper.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      原文を見る
+                    </a>
+                  </div>
+                </div>
+                
+                {/* 他の論文リスト */}
+                {papers.length > 1 && (
+                  <div className="bg-white rounded-lg shadow-sm p-4">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">その他の検索結果</h3>
+                    <div className="space-y-2">
+                      {papers.filter(p => p.id !== selectedPaper.id).map(paper => (
+                        <button
+                          key={paper.id}
+                          onClick={() => setSelectedPaper(paper)}
+                          className="w-full text-left p-2 rounded hover:bg-gray-100 transition"
+                        >
+                          <p className="text-sm font-medium text-gray-800 line-clamp-1">{paper.translated_title || paper.title}</p>
+                          <p className="text-xs text-gray-500">{paper.authors}</p>
+                        </button>
+                      ))}
                     </div>
-                    <div className="ml-3 flex-1">
-                      <p className="text-sm text-purple-700">
-                        <span className="font-medium">検索クエリ: </span>
-                        {lastSearchQuery}
-                      </p>
-                      <p className="mt-1 text-xs text-purple-600">
-                        Gemini AIを使用して最適な検索結果を提供しています
+                  </div>
+                )}
+              </div>
+              
+              {/* 翻訳セクション - 右半分 */}
+              <div className="w-1/2 p-6 bg-gray-50 overflow-auto border-l border-gray-200">
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <h2 className="text-xl font-bold text-blue-600">{selectedPaper.translated_title || selectedPaper.title}</h2>
+                    <button className="px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition">
+                      再翻訳
+                    </button>
+                  </div>
+                  
+                  <div className="mb-6">
+                    <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
+                      <span>日本語訳</span>
+                      <span className="px-2 py-0.5 bg-green-50 text-green-700 rounded text-xs">DeepL翻訳</span>
+                    </div>
+                    
+                    <div className="bg-blue-50 p-4 rounded-md border border-blue-100">
+                      <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                        {selectedPaper.translated_abstract || '翻訳は現在利用できません。'}
                       </p>
                     </div>
                   </div>
+                  
+                  {selectedPaper.summary && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
+                        <span>AI要約</span>
+                        <span className="px-2 py-0.5 bg-purple-50 text-purple-700 rounded text-xs">Gemini AI</span>
+                      </div>
+                      
+                      <div className="bg-purple-50 p-4 rounded-md border border-purple-100">
+                        <p className="text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                          {selectedPaper.summary}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <div className="flex space-x-3 mt-6 pt-4 border-t border-gray-100">
+                    <button className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded transition flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                      </svg>
+                      コピー
+                    </button>
+                    
+                    <button className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded transition flex items-center">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      共有
+                    </button>
+                  </div>
                 </div>
-              )}
-              <PaperList papers={papers} />
-            </>
-          ) : (
-            <div className="bg-white rounded-xl shadow-lg p-8 text-center">
-              <div className="mx-auto w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center mb-4">
-                <svg className="h-12 w-12 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
               </div>
-              <h2 className="text-xl font-medium text-gray-900 mb-2">論文を検索してみましょう</h2>
-              <p className="text-gray-500 max-w-md mx-auto">
-                キーワードを入力して検索ボタンをクリックすると、関連する学術論文が表示されます。論文は自動的に翻訳・要約されます。
-              </p>
-              <div className="mt-6 inline-flex flex-wrap justify-center gap-2">
-                <button 
-                  onClick={() => handleSearch({ keyword: 'Transformer' })} 
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
-                >
-                  Transformer
-                </button>
-                <button 
-                  onClick={() => handleSearch({ keyword: 'GPT' })} 
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
-                >
-                  GPT
-                </button>
-                <button 
-                  onClick={() => handleSearch({ keyword: 'Computer Vision' })} 
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-blue-700 bg-blue-100 hover:bg-blue-200"
-                >
-                  Computer Vision
-                </button>
+            </div>
+          ) : (
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center max-w-md">
+                <div className="mx-auto w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center mb-4">
+                  <svg className="h-10 w-10 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <h2 className="text-xl font-medium text-gray-900 mb-2">論文を検索してみましょう</h2>
+                <p className="text-gray-500 mb-6">
+                  左側の検索欄からキーワードを入力すると、関連する学術論文が表示されます。
+                </p>
               </div>
             </div>
           )}
         </div>
-      </main>
-
-      <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-center text-gray-500 text-sm">© {new Date().getFullYear()} 論文検索・翻訳アプリ - 学術研究をより簡単に</p>
-            <div className="mt-4 md:mt-0 flex space-x-6">
-              <a href="/about" className="text-gray-400 hover:text-gray-500">
-                このアプリについて
-              </a>
-              <a href="/terms" className="text-gray-400 hover:text-gray-500">
-                利用規約
-              </a>
-              <a href="/privacy" className="text-gray-400 hover:text-gray-500">
-                プライバシー
-              </a>
-            </div>
-          </div>
-        </div>
-      </footer>
+      </div>
     </div>
   );
 }

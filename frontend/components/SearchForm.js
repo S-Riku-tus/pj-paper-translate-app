@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { SearchIcon, FilterIcon, XIcon, LightningBoltIcon } from '@heroicons/react/outline';
 
-export default function SearchForm({ onSearch }) {
+export default function SearchForm({ onSearch, isCompact = false }) {
   const [keyword, setKeyword] = useState('');
   const [genre, setGenre] = useState('');
   const [yearFrom, setYearFrom] = useState('2018');
@@ -36,9 +36,9 @@ export default function SearchForm({ onSearch }) {
   };
 
   return (
-    <div className="bg-white shadow-lg rounded-xl p-6 transition-all duration-300">
+    <div className={`bg-white shadow-sm rounded-lg p-4 transition-all duration-300 ${isCompact ? '' : 'shadow-lg p-6'}`}>
       <form onSubmit={handleSubmit}>
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="relative rounded-md shadow-sm">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <SearchIcon className="h-5 w-5 text-gray-400" aria-hidden="true" />
@@ -49,8 +49,8 @@ export default function SearchForm({ onSearch }) {
               name="keyword"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              className="block w-full pl-10 pr-12 py-4 sm:text-lg border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              placeholder={useGemini ? "「AIによる画像認識の進展について最近の論文」のように自然に質問してください" : "論文タイトル、キーワード、著者名など"}
+              className={`block w-full pl-10 pr-10 border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 ${isCompact ? 'py-2 text-sm' : 'py-4 sm:text-lg'}`}
+              placeholder={useGemini ? "自然言語で検索" : "キーワード、著者名など"}
             />
             {keyword && (
               <div className="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -73,18 +73,18 @@ export default function SearchForm({ onSearch }) {
               } transition-all duration-200`}
             >
               <LightningBoltIcon className={`h-4 w-4 ${useGemini ? 'text-purple-500' : 'text-gray-500'} mr-1`} />
-              <span className="text-sm font-medium">
-                {useGemini ? 'Gemini AIを使用中' : 'Gemini AIを使用する'}
+              <span className="text-xs font-medium">
+                {useGemini ? 'AI検索' : 'AI検索'}
               </span>
-              <div className={`ml-2 w-4 h-4 rounded-full flex items-center justify-center ${useGemini ? 'bg-purple-500' : 'bg-gray-300'}`}>
+              <div className={`ml-2 w-3 h-3 rounded-full flex items-center justify-center ${useGemini ? 'bg-purple-500' : 'bg-gray-300'}`}>
                 <span className="sr-only">{useGemini ? 'Gemini AI有効' : 'Gemini AI無効'}</span>
                 {useGemini && (
-                  <span className="h-2 w-2 rounded-full bg-white" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-white" />
                 )}
               </div>
             </div>
             
-            {useGemini && (
+            {useGemini && !isCompact && (
               <p className="ml-3 text-xs text-gray-500">
                 自然言語での検索が可能です。Gemini AIが最適なキーワードを見つけます。
               </p>
@@ -92,30 +92,34 @@ export default function SearchForm({ onSearch }) {
           </div>
         </div>
 
-        <div className="flex items-center justify-between mb-2">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300"
-          >
-            <FilterIcon className="h-4 w-4 mr-2" aria-hidden="true" />
-            詳細検索オプション
-          </button>
-          
-          <div className="flex space-x-2">
+        <div className="flex items-center justify-between">
+          {!isCompact && (
             <button
               type="button"
-              onClick={clearForm}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300"
             >
-              クリア
+              <FilterIcon className="h-4 w-4 mr-2" aria-hidden="true" />
+              詳細検索オプション
             </button>
+          )}
+          
+          <div className={`flex space-x-2 ${isCompact ? 'w-full' : ''}`}>
+            {!isCompact && (
+              <button
+                type="button"
+                onClick={clearForm}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300"
+              >
+                クリア
+              </button>
+            )}
             <button
               type="submit"
               disabled={isLoading}
-              className={`inline-flex justify-center items-center px-6 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${
+              className={`inline-flex justify-center items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${
                 isLoading ? 'bg-blue-400' : useGemini ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
-              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300`}
+              } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300 ${isCompact ? 'w-full' : ''}`}
             >
               {isLoading ? (
                 <>
@@ -123,16 +127,16 @@ export default function SearchForm({ onSearch }) {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  検索中...
+                  検索中
                 </>
               ) : (
-                <>{useGemini ? 'AIで検索' : '論文を検索'}</>
+                <>{useGemini ? 'AI検索' : '検索'}</>
               )}
             </button>
           </div>
         </div>
 
-        {showAdvanced && (
+        {showAdvanced && !isCompact && (
           <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-4 transition-all duration-300 animate-fadeIn">
             <div className="grid grid-cols-1 gap-y-4 gap-x-4 sm:grid-cols-6">
               <div className="sm:col-span-3">
