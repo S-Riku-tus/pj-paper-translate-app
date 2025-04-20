@@ -38,6 +38,40 @@ export async function searchPapers(searchParams) {
   }
 }
 
+export async function searchPapersWithGemini(searchParams) {
+  // 環境変数をログに出力して確認
+  console.log('Gemini API Call - Environment:', {
+    API_BASE_URL,
+    USE_REAL_API: process.env.NEXT_PUBLIC_USE_REAL_API
+  });
+
+  // モックデータを使用する場合は早期リターン
+  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_REAL_API !== 'true') {
+    console.log('Using mock data instead of Gemini API call');
+    return [];
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/papers/search-with-gemini`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(searchParams),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Gemini API request failed with status ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Gemini API request error:', error);
+    throw error;
+  }
+}
+
 export async function translatePaper(paperId, text) {
   // 環境変数をログに出力して確認
   console.log('Translation API Call - Environment:', {
@@ -75,6 +109,47 @@ export async function translatePaper(paperId, text) {
     return await response.json();
   } catch (error) {
     console.error('Translation API request error:', error);
+    throw error;
+  }
+}
+
+export async function summarizePaper(paperId, text) {
+  // 環境変数をログに出力して確認
+  console.log('Summarization API Call - Environment:', {
+    API_BASE_URL,
+    USE_REAL_API: process.env.NEXT_PUBLIC_USE_REAL_API
+  });
+
+  // モックデータを使用する場合
+  if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_REAL_API !== 'true') {
+    console.log('Using mock summarization instead of API call');
+    // 1秒の遅延を追加して非同期処理をシミュレート
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // モック要約を返す
+    return {
+      summary: `これは「${text.substring(0, 30)}...」のモック要約です。実際のAPIが利用可能になると、Gemini APIを使用した本物の要約が提供されます。`,
+      success: true
+    };
+  }
+
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/papers/summarize`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ paper_id: paperId, text }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `Summarization request failed with status ${response.status}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Summarization API request error:', error);
     throw error;
   }
 }

@@ -2,7 +2,7 @@ import Head from 'next/head';
 import { useState } from 'react';
 import SearchForm from '../components/SearchForm';
 import PaperList from '../components/PaperList';
-import { searchPapers } from '../utils/api';
+import { searchPapers, searchPapersWithGemini } from '../utils/api';
 
 interface Paper {
   id: string;
@@ -29,17 +29,22 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
+  const [lastSearchQuery, setLastSearchQuery] = useState<string>('');
+  const [usedGemini, setUsedGemini] = useState<boolean>(false);
   
-  const handleSearch = async (searchParams: SearchParams) => {
+  const handleSearch = async (searchParams: SearchParams, useGemini: boolean = false) => {
     setIsLoading(true);
     setError(null);
+    setLastSearchQuery(searchParams.keyword || '');
+    setUsedGemini(useGemini);
     
     try {
       // 開発段階では、モックデータを使用します
       // 本番環境では、APIを呼び出します
       console.log('Environment:', {
         NODE_ENV: process.env.NODE_ENV,
-        USE_REAL_API: process.env.NEXT_PUBLIC_USE_REAL_API
+        USE_REAL_API: process.env.NEXT_PUBLIC_USE_REAL_API,
+        useGemini
       });
       
       if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_REAL_API !== 'True') {
@@ -132,7 +137,13 @@ export default function Home() {
         setPapers(filteredPapers);
       } else {
         // 本番環境では、実際のAPIから論文を取得
-        const data = await searchPapers(searchParams);
+        // Gemini APIを使用するかどうかで呼び出すAPIを切り替え
+        let data;
+        if (useGemini) {
+          data = await searchPapersWithGemini(searchParams);
+        } else {
+          data = await searchPapers(searchParams);
+        }
         setPapers(data);
       }
       setHasSearched(true);
@@ -184,7 +195,9 @@ export default function Home() {
               <div className="text-center">
                 <div className="inline-block animate-spin h-12 w-12 border-4 border-gray-200 rounded-full border-t-blue-600"></div>
                 <p className="mt-4 text-gray-700 text-lg">論文を検索中...</p>
-                <p className="mt-2 text-gray-500 text-sm">少々お待ちください</p>
+                <p className="mt-2 text-gray-500 text-sm">
+                  {usedGemini ? 'Gemini AIがあなたのクエリを解析しています...' : '少々お待ちください'}
+                </p>
               </div>
             </div>
           ) : error ? (
@@ -201,7 +214,29 @@ export default function Home() {
               </div>
             </div>
           ) : papers.length > 0 || hasSearched ? (
-            <PaperList papers={papers} />
+            <>
+              {usedGemini && lastSearchQuery && (
+                <div className="mb-6 bg-purple-50 border border-purple-100 rounded-lg p-4">
+                  <div className="flex items-start">
+                    <div className="flex-shrink-0 pt-0.5">
+                      <svg className="h-5 w-5 text-purple-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <p className="text-sm text-purple-700">
+                        <span className="font-medium">検索クエリ: </span>
+                        {lastSearchQuery}
+                      </p>
+                      <p className="mt-1 text-xs text-purple-600">
+                        Gemini AIを使用して最適な検索結果を提供しています
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <PaperList papers={papers} />
+            </>
           ) : (
             <div className="bg-white rounded-xl shadow-lg p-8 text-center">
               <div className="mx-auto w-24 h-24 rounded-full bg-blue-100 flex items-center justify-center mb-4">

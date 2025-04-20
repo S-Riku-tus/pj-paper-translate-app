@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { SearchIcon, FilterIcon, XIcon } from '@heroicons/react/outline';
+import { SearchIcon, FilterIcon, XIcon, LightningBoltIcon } from '@heroicons/react/outline';
 
 export default function SearchForm({ onSearch }) {
   const [keyword, setKeyword] = useState('');
@@ -8,6 +8,7 @@ export default function SearchForm({ onSearch }) {
   const [yearTo, setYearTo] = useState('2025');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [useGemini, setUseGemini] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,7 +22,7 @@ export default function SearchForm({ onSearch }) {
     };
     
     try {
-      await onSearch(searchParams);
+      await onSearch(searchParams, useGemini);
     } finally {
       setIsLoading(false);
     }
@@ -49,7 +50,7 @@ export default function SearchForm({ onSearch }) {
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
               className="block w-full pl-10 pr-12 py-4 sm:text-lg border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
-              placeholder="論文タイトル、キーワード、著者名など"
+              placeholder={useGemini ? "「AIによる画像認識の進展について最近の論文」のように自然に質問してください" : "論文タイトル、キーワード、著者名など"}
             />
             {keyword && (
               <div className="absolute inset-y-0 right-0 flex items-center pr-3">
@@ -61,6 +62,32 @@ export default function SearchForm({ onSearch }) {
                   <XIcon className="h-5 w-5" aria-hidden="true" />
                 </button>
               </div>
+            )}
+          </div>
+          
+          <div className="mt-2 flex items-center">
+            <div
+              onClick={() => setUseGemini(!useGemini)}
+              className={`flex items-center cursor-pointer rounded-full pl-2 pr-3 py-1 ${
+                useGemini ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-600'
+              } transition-all duration-200`}
+            >
+              <LightningBoltIcon className={`h-4 w-4 ${useGemini ? 'text-purple-500' : 'text-gray-500'} mr-1`} />
+              <span className="text-sm font-medium">
+                {useGemini ? 'Gemini AIを使用中' : 'Gemini AIを使用する'}
+              </span>
+              <div className={`ml-2 w-4 h-4 rounded-full flex items-center justify-center ${useGemini ? 'bg-purple-500' : 'bg-gray-300'}`}>
+                <span className="sr-only">{useGemini ? 'Gemini AI有効' : 'Gemini AI無効'}</span>
+                {useGemini && (
+                  <span className="h-2 w-2 rounded-full bg-white" />
+                )}
+              </div>
+            </div>
+            
+            {useGemini && (
+              <p className="ml-3 text-xs text-gray-500">
+                自然言語での検索が可能です。Gemini AIが最適なキーワードを見つけます。
+              </p>
             )}
           </div>
         </div>
@@ -87,7 +114,7 @@ export default function SearchForm({ onSearch }) {
               type="submit"
               disabled={isLoading}
               className={`inline-flex justify-center items-center px-6 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white ${
-                isLoading ? 'bg-blue-400' : 'bg-blue-600 hover:bg-blue-700'
+                isLoading ? 'bg-blue-400' : useGemini ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
               } focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all duration-300`}
             >
               {isLoading ? (
@@ -99,7 +126,7 @@ export default function SearchForm({ onSearch }) {
                   検索中...
                 </>
               ) : (
-                <>論文を検索</>
+                <>{useGemini ? 'AIで検索' : '論文を検索'}</>
               )}
             </button>
           </div>
